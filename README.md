@@ -1,4 +1,4 @@
-# PRobabilities over Z and ALpha (Pr(et)ZAl)
+# PRobability EsTimates over Z and ALpha (PRETZAL)
 
 Welcome to the repository for a hack begun at the first LSST-DESC Hack Week project.  This project aims to explore how one might derive and use joint probability distributions over redshift ("z") and other parameters of galaxies (lumped into "alpha").
 
