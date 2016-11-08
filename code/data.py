@@ -1,19 +1,18 @@
 """
 Module for handling the data:
 """
-
+import pyfits as pf
 import numpy as np
 import util
 from astropy.cosmology import FlatLambdaCDM
-np.random.seed(12345)
 
 def filter():
     '''
     generate indices for downsampling of the data
     '''
+    np.random.seed(12345)
     N = 50000 # hard-coded number for downsampling the galaxies
-    cutoff = 2. # hard-coded redshift cutoff since we don't trust anything beyond z \sim 2
-    indices = np.random.choice(1000000, N)	
+    indices = np.random.choice(5000000, N)	
 
     return indices
     
@@ -23,7 +22,7 @@ def load_truth():
     data_file = ''.join([util.dat_dir(),
             'Buzzard_v1.1_truth.147.fit'])
 
-    return pf.open(data_file)
+    return pf.open(data_file)[1].data
 
 def load_observations(): 
 
@@ -32,19 +31,21 @@ def load_observations():
     data_file = ''.join([util.dat_dir(),
             'Buzzard_v1.1.147.fit'])
 
-    return pf.open(data_file)
+    return pf.open(data_file)[1].data
 
 def generate_alpha():
     '''generates additional galaxy properties : Mstar, SSFR, ...
        and write them into a file
     '''
-
     data_file = ''.join([util.dat_dir(),
             'Buzzard_v1.1_truth.147.fit'])
-
     indices = filter() 
+
     redshifts = pf.open(data_file)[1].data['Z'][indices]
-    redshifts = redshifts[redshifts < 2.]
+    coeffs = pf.open(data_file)[1].data['COEFFS'][indices]
+    coeffs = coeffs[redshifts < 1.8]
+    coeffs = coeffs.T 
+    redshifts = redshifts[redshifts < 1.8]
     nredshifts = len(redshifts)
 
     specfile =  ''.join([util.dat_dir(),
@@ -66,8 +67,7 @@ def generate_alpha():
     intsfh=np.zeros(nredshifts)
 
     cosmology=FlatLambdaCDM(H0=70, Om0=0.286) 
-    redshift = 
-    dmod=cosmology.distmod(redshift)
+    dmod=cosmology.distmod(redshifts)
     # do all the calculations, looping over objects
     for i in np.arange(nredshifts):
         b300[i]=np.sum(tmass300*coeffs[:,i])/np.sum(tmass*coeffs[:,i])
@@ -76,9 +76,6 @@ def generate_alpha():
         mets[i]=np.sum(tmremain*tmetallicity*coeffs[:,i])/tmp_mass[i]
         mass[i]=tmp_mass[i]*10.**(0.4*dmod.value[i])
         intsfh[i]=np.sum(coeffs[:,i])*10.**(0.4*dmod.value[i])
-
-    galprop =  np.recarray([b300, b1000, tmp_mass, mets, mass, intsfh], ["b300", "b1000", "tmp_mass", "mets", "mass", "intsfh"])
-    file_name = ''.join([util.dat_dir(), 'galprop.dat'])
-    np.savetxt(file_name , galprop)
-
-    return None 
+    galprop =  np.rec.fromarrays(np.vstack([b300, b1000, tmp_mass, mets, mass, intsfh]), names = ["b300", "b1000", "tmp_mass", "mets", "mass", "intsfh"])
+    
+    return galprop 
