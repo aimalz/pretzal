@@ -40,15 +40,6 @@ def scaler():
     return train_X, train_Y, test_X, test_Y    
 
 
-def GPregression():
-
-    train_X, train_Y, test_X, test_Y = scaler()
-    K = GPy.kern.Matern32(1)
-    icm = GPy.util.multioutput.ICM(input_dim=5, num_outputs=2, kernel=K)    
-    m = GPy.models.GPCoregionalizedRegression([train_X, train_X], [test_X[:,0], test_X[:,1]], kernel=icm)  
-    return m
-
-
 def plot_distribution():
 
     magerrs , mags, masterX, masterY  = data_vectors()
