@@ -34,6 +34,7 @@ def data_vectors():
     z = obs["MAG_Z"]
     y = obs["MAG_Y"]
     Z = true['Z']    
+    R = true['SIZE']    
     
     """ errors """
 
@@ -43,18 +44,18 @@ def data_vectors():
     ze = obs["MAGERR_Z"]
     ye = obs["MAGERR_Y"]
     
-    CAT = np.vstack([g,r,i,z,y,Z]).T
+    CAT = np.vstack([g,r,i,z,y,Z,R]).T
     CATERR = np.vstack([ge,re,ie,ze,ye]).T
     CATERR = np.log(CATERR)
     
     """ filtering the catalogs """
   
     CATERR = CATERR[inds, :]
-    zcut = np.where((CAT[inds,-1] < 1.8))[0]
+    zcut = np.where((CAT[inds,-2] < 1.8))[0]
     CATERR = CATERR[zcut]
     
     CAT = CAT[inds, :]
-    CAT = CAT[CAT[:,-1] < 1.8 , :]
+    CAT = CAT[CAT[:,-2] < 1.8 , :]
    
  
     """ some magnitudes are higher than 30, let's get rid of them """
@@ -66,14 +67,14 @@ def data_vectors():
 
     """ putting together the final catalog before regression """
       
-    g, r, i, z, y, Z = CAT.T
+    g, r, i, z, y, Z , R = CAT.T
     gr, ri, iz, zy = g-r, r-i, i-z, z-y
     
     mass , sf = galprops["mass"], galprops["b300"]
     
     mags = np.vstack([g,r,i,z,y]).T
     masterX = np.vstack([gr, ri, iz, zy, y]).T
-    masterY = np.vstack([Z, mass, sf]).T    
+    masterY = np.vstack([Z, mass, R]).T    
 
     length = mags.shape[0]
     train_ind = np.random.choice(length , int(0.5 * length))
