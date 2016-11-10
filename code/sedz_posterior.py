@@ -8,23 +8,87 @@ given multi-band photometry measurements.
 """
 import argparse
 import sys
+import math
 import os.path
 import numpy as np
 import emcee
+import logging
+
+import sed_model_galsim as sedmod
+
+# Print log messages to screen:
+logging.basicConfig(level=logging.DEBUG,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 class PhotometryData(object):
-	"""
-	A likelihood model for multi-band photometry observations
-	"""
-	def __init__(self, arg):
-		self.arg = arg
+    """
+    A likelihood model for multi-band photometry observations
+    """
+    def __init__(self):
+        self.model = sedmod.SEDModelGalSim()
 
-	def __call__(self, p, *args, **kwargs):
-		return self.lnlike(p, *args, **kwargs) + self.lnprior(p)		
+    def load(self, infile):
+        """
+        Load measured magnitudes from file
+        """
+        # FIXME: Replace hard-coded values with those from input file
+        self.filter_names = ['u', 'g', 'r', 'i', 'z', 'y']
+        self.data = np.array([20., 20., 20., 20., 20., 20.])
+        self.sigma_sq = 0.25
+        return None
+
+    def lnprior(self, p):
+        return 0.0
+
+    def lnlike(self, p, *args, **kwargs):
+        self.model.set_params(p)
+        m = np.array([self.model.get_magnitude(f) for f in self.filter_names])
+        delta = self.data - m
+        chisq = np.sum(delta**2 / self.sigma_sq)
+        return -0.5 * chisq
+
+    def __call__(self, p, *args, **kwargs):
+        return self.lnlike(p, *args, **kwargs) + self.lnprior(p)        
 
 
-def do_sampling(args, phot)
+def do_sampling(args, phot):
+    """
+    @brief      Run MCMC 
+    
+    @param      args  Command line arguments passed from main()
+    @param      phot  An instance of PhotometryData class
+    
+    @return     MCMC parameter samples and ln-posteriors
+    """
+    p0 = phot.model.get_params()
+    nvars = len(p0)
+    p0 = emcee.utils.sample_ball(p0, np.ones_like(p0) * 0.01, args.nwalkers)
+    sampler = emcee.EnsembleSampler(args.nwalkers,
+                                    nvars,
+                                    phot,
+                                    threads=args.nthreads)
+    nburn = max([1,args.nburn])
+    logging.info("Burning with {:d} steps".format(nburn))
+    pp, lnp, rstate = sampler.run_mcmc(p0, nburn)
+    sampler.reset()
+    pps = []
+    lnps = []
+    lnpriors = []
+    logging.info("Sampling")
+    for i in range(args.nsamples):
+        if np.mod(i+1, 10) == 0:
+            print "\tStep {:d} / {:d}, lnp: {:5.4g}".format(i+1, args.nsamples,
+                np.mean(pp))
+        pp, lnp, rstate = sampler.run_mcmc(pp, 1, lnprob0=lnp, rstate0=rstate)
+        if not args.quiet:
+            print i, np.mean(lnp)
+            print np.mean(pp, axis=0)
+            print np.std(pp, axis=0)
+        lnprior = np.array([phot.lnprior(p) for p in pp])
+        pps.append(np.column_stack((pp.copy(), lnprior)))
+        lnps.append(lnp.copy())
+    return pps, lnps
 
 # ------------------------------------------------------------------------------
 def main():
@@ -47,11 +111,20 @@ def main():
     parser.add_argument("--nthreads", default=1, type=int,
                         help="Number of threads to use (Default: 1)")
 
-   args = parser.parse_args()
+    parser.add_argument("--quiet", action='store_true')
 
-   do_sampling(args, phot)
+    args = parser.parse_args()
+    logging.debug('--- Starting MCMC sampling')
 
-   return 0
+    phot = PhotometryData()
+    phot.load("")
+
+    pps, lnps = do_sampling(args, phot)
+
+    print pps
+
+    logging.debug('--- Sampler finished')
+    return 0
 
 if __name__ == "__main__":
     sys.exit(main())

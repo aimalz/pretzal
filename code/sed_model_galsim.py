@@ -5,29 +5,35 @@ sed_model_galsim.py
 
 Model an SED as a superposition of templates with GalSim
 """
+import math
 import numpy as np 
+from operator import add
+import os
 import galsim
 
 ### Define the possible SED templates in the model
 k_SED_names = ['NGC_0695_spec', 'NGC_4125_spec', 'NGC_4552_spec', 'CGCG_049-057_spec']
 
 
-class SEDModelGalSIm(object):
-	"""
-	An SED model as a superposition of templates
+class SEDModelGalSim(object):
+    """
+    An SED model as a superposition of templates
 
-	Uses GalSim to render through bandpasses to get mags and fluxes
-	"""
-	def __init__(self, telescope_name="LSST", ref_filter_name='r'):
-		self.telescope_name = telescope_name
-		self.ref_filter_name = ref_filter_name
+    Uses GalSim to render through bandpasses to get mags and fluxes
+    """
+    def __init__(self, telescope_name="LSST", ref_filter_name='r'):
+        self.telescope_name = telescope_name
+        self.ref_filter_name = ref_filter_name
 
-		## Initialize model parameters
-		## A single redshift parameter 
-		self.redshift = 0.0
-		## A 'magnitude' parameter to set the amplitude of each SED template
-		self.mags = [20.0 for i in xrange(len(k_SED_names))]
-	
+        ## Initialize model parameters
+        ## A single redshift parameter 
+        self.redshift = 0.0
+        ## A 'magnitude' parameter to set the amplitude of each SED template
+        self.mags = [20.0 for i in xrange(len(k_SED_names))]
+
+        self._load_sed_files()
+        self._load_filter_files()
+    
     def _load_sed_files(self):
         """
         Load SED templates from files.
@@ -37,7 +43,7 @@ class SEDModelGalSIm(object):
         path, filename = os.path.split(__file__)
         datapath = os.path.abspath(os.path.join(path, "../dat/seds/"))
         self.SEDs = {}
-        for SED_name in jifparams.k_SED_names:
+        for SED_name in k_SED_names:
             SED_filename = os.path.join(datapath, '{0}.sed'.format(SED_name))
             self.SEDs[SED_name] = galsim.SED(SED_filename, wave_type='Ang',
                                              flux_type='flambda')
@@ -81,14 +87,14 @@ class SEDModelGalSIm(object):
         redshift, resulting in output apparent magnitudes that may not match the input apparent
         magnitude parameter (unless z=0).
         """
-        bp = self.filters[ref_filter_name]
+        bp = self.filters[self.ref_filter_name]
         SEDs = [self.SEDs[SED_name].atRedshift(0.).withMagnitude(
             target_magnitude=self.mags[i],
             bandpass=bp).atRedshift(self.redshift)
                 for i, SED_name in enumerate(k_SED_names)]
         return reduce(add, SEDs)
 
-   def get_flux(self, filter_name='r'):
+    def get_flux(self, filter_name='r'):
         """
         Get the flux of the galaxy model in the named bandpass
 
@@ -141,8 +147,8 @@ def load_filter_file_to_bandpass(table, wavelength_scale=1.0,
 
 
 def load_filter_files(wavelength_scale=1.0, telescope_name="LSST",
-					  filter_names='ugrizy', effective_diameter=6.4,
-					  exptime_zeropoint=30.):
+                      filter_names='ugrizy', effective_diameter=6.4,
+                      exptime_zeropoint=30.):
     """
     Load filters for drawing chromatic objects.
 
