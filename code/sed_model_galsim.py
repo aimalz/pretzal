@@ -53,6 +53,22 @@ class SEDModelGalSIm(object):
         """
         self.filters = load_filter_files(wavelength_scale, self.telescope_name)
 
+    def get_params(self):
+        """
+        Get a concatenated list of model parameters 
+
+        For use in, e.g., emcee
+        """
+        return [self.redshift] + self.mags
+
+    def set_params(self, p):
+        """
+        Set model parameters from an input list [redshift, mags]
+        """
+        self.redshift = p[0]
+        self.mags = p[1:len(p)]
+        return None
+
     def get_SED(self):
         """
         Get the GalSim SED object given the SED parameters and redshift.
