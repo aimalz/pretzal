@@ -27,7 +27,7 @@ class SEDModelGalSim(object):
 
         ## Initialize model parameters
         ## A single redshift parameter 
-        self.redshift = 0.0
+        self.redshift = 1.0
         ## A 'magnitude' parameter to set the amplitude of each SED template
         self.mags = [20.0 for i in xrange(len(k_SED_names))]
 
@@ -71,9 +71,12 @@ class SEDModelGalSim(object):
         """
         Set model parameters from an input list [redshift, mags]
         """
-        self.redshift = p[0]
-        self.mags = p[1:len(p)]
-        return None
+        valid = False
+        if np.all(p > 0.):
+            self.redshift = p[0]
+            self.mags = p[1:len(p)]
+            valid = True
+        return valid
 
     def get_SED(self):
         """
