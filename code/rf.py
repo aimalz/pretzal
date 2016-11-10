@@ -30,7 +30,6 @@ def data_vectors():
 def scaler():
 
     X_test, X_train, Y_test, Y_train = data_vectors()
-
     train_X = RS.fit_transform(X_train)
     train_Y = Y_train
     test_X  = RS.transform(X_test)
@@ -57,7 +56,7 @@ def rf(num_bins, num_estimators):
     zmin, zmax = min(Y_train[:,0]), max(Y_train[:,0])
     Mmin, Mmax = min(Y_train[:,1]), max(Y_train[:,1])
    
-    print Mmin , Mmax, zmin, zmax
+    #print Mmin , Mmax, zmin, zmax
  
     zgrid = np.linspace(zmin, zmax, nbins)
     Mgrid = np.linspace(Mmin, Mmax, nbins)
@@ -65,29 +64,28 @@ def rf(num_bins, num_estimators):
     binsize1 = (zmax - zmin)/ nbins
     binsize2 = (Mmax - Mmin)/ nbins
     
-    L = np.zeros((len(Y_train)))
+    #L = np.zeros((len(Y_train)))
+    L = np.zeros((len(Y_train), 2))
     
-        
+    
     """ Labeling the bins """
     for i in range(nbins):
         for j in range(nbins):
             ij = np.where((Y_train[:,0]>=zmin+i*binsize1)&(Y_train[:,0]<zmin+(i+1)*binsize1)&(Y_train[:,1]>=Mmin+j*binsize2)&(Y_train[:,1]<Mmin+(j+1)*binsize2))[0]
             #print ij, "ball"
-            L[ij] = i * nbins + j
-    print "binned data=" , L
+            L[ij] = [i,j]
      
-    #for i in range(nbins):
-    #  Y[(Y>=zmin)&(Y<zmin*i+binsize)] = i
-    #  Y[Y<1] = 0
         
     """ Splitting the data into training and test sets"""
     
-    L = L.astype(int)
+    #L = L.astype(int)
     
     """ Setting up the RF classifier"""
-    clf = RandomForestClassifier(n_estimators=num_estimators, max_depth=None,min_samples_split=1, random_state=0)
-    clf.n_classes_ = nbins * nbins
-    clf.classes_ = np.arange(nbins*nbins)    
+
+    clf = RandomForestClassifier(n_estimators=num_estimators, max_depth=None, min_samples_split=1, random_state=0)
+    #clf.n_classes_ = nbins * nbins
+    #clf.classes_ = np.arange(nbins * nbins)    
+    #print clf
     """ training """
     clf.fit(X_train, L)
     """feature importance """
@@ -96,11 +94,11 @@ def rf(num_bins, num_estimators):
     """best predictions"""
     Y_pred = clf.predict(test_X)
     """label probabilities"""
-    prob = clf.predict_proba(test_X)    
+    prob = clf.predict_proba(test_X) 
     """transformation quantities """
     trans = zmin , Mmin, binsize1, binsize2
 
-    return prob.reshape(len(test_X), nbins-1, nbins-1), Y_pred, trans
+    return prob , Y_pred, trans
 
 
 def plot_distribution():
@@ -163,10 +161,10 @@ def plot_distribution():
 if __name__ == '__main__':
 
     
-   prob , bestfit , trans = rf(num_bins = 10, num_estimators=200) 
+    prob , bestfit , trans = rf(num_bins = 20, num_estimators=100) 
 
-   for i in range(prob.shape[0]):
-       plt.imshow(prob[i], interpolation = 'none')
-       plt.colorbar()
+    for i in range(prob[0].shape[0]):
+       plt.plot(np.arange(len(prob[0][i,:])) , np.array(prob[0][i,:]), color='blue' , drawstyle='steps-mid')
+       #plt.imshow(prob[i], interpolation = 'none')
        plt.show()
        plt.close()
