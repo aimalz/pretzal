@@ -1,2 +1,7 @@
 *.fit
 *.fits
+*.hdf5
+*.dat
+*.out
+*.log
+*.aux
