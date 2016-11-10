@@ -27,7 +27,7 @@ def data_vectors():
     true = data.load_truth()
    
     """ obsevations """
-    
+    u = obs["MAG_U"] 
     g = obs["MAG_G"]
     r = obs["MAG_R"]
     i = obs["MAG_I"]
@@ -44,7 +44,7 @@ def data_vectors():
     ze = obs["MAGERR_Z"]
     ye = obs["MAGERR_Y"]
     
-    CAT = np.vstack([g,r,i,z,y,Z,R]).T
+    CAT = np.vstack([u-g,g-r,r-i,i-z,z-y,r,Z,R]).T
     CATERR = np.vstack([ge,re,ie,ze,ye]).T
     CATERR = np.log(CATERR)
     
@@ -67,27 +67,25 @@ def data_vectors():
 
     """ putting together the final catalog before regression """
       
-    g, r, i, z, y, Z , R = CAT.T
-    gr, ri, iz, zy = g-r, r-i, i-z, z-y
+    ug, gr, ri, iz, zy, r, Z , R = CAT.T
     
     mass , sf = galprops["mass"], galprops["b300"]
     
-    mags = np.vstack([g,r,i,z,y]).T
-    masterX = np.vstack([gr, ri, iz, zy, y]).T
-    masterY = np.vstack([Z, mass, R]).T    
+    masterX = np.vstack([ug, gr, ri, iz, zy, r]).T
+    masterY = np.vstack([Z, np.log10(mass), R]).T    
 
-    length = mags.shape[0]
+    length = masterX.shape[0]
     train_ind = np.random.choice(length , int(0.5 * length))
     test_ind = np.setdiff1d(np.arange(length) , train_ind)
 
-    np.savetxt(util.dat_dir()+"Xerr_train.dat", CATERR[train_ind]) 
-    np.savetxt(util.dat_dir()+"Xerr_test.dat", CATERR[test_ind]) 
-    np.savetxt(util.dat_dir()+"X_train.dat", mags[train_ind])
-    np.savetxt(util.dat_dir()+"X_test.dat", mags[test_ind])
+    #np.savetxt(util.dat_dir()+"Xerr_train.dat", CATERR[train_ind]) 
+    #np.savetxt(util.dat_dir()+"Xerr_test.dat", CATERR[test_ind]) 
+    np.savetxt(util.dat_dir()+"X_train.dat", masterX[train_ind])
+    np.savetxt(util.dat_dir()+"X_test.dat", masterX[test_ind])
     np.savetxt(util.dat_dir()+"Y_train.dat", masterY[train_ind])
     np.savetxt(util.dat_dir()+"Y_test.dat", masterY[test_ind])
  
-    return CATERR , mags, masterX, masterY
+    return None 
 
 
 if __name__ == '__main__':
