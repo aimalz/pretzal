@@ -110,15 +110,10 @@ citecolor=darkblue}
 
 
 \begin{abstract}
-
 Posterior probability distributions over photometric redshift (photo-$z$) are rapidly replacing photo-$z$ point estimators as data products of current and future galaxy surveys.  It is desirable not only to have probabilities over redshift $z$ but also over other parameters $\vec{\alpha}$, both directly measurable (ellipticity, size, etc.) and not (stellar mass, star formation history, etc.).  Such hypothetical data products could be informative for studies of weak gravitational lensing, large-scale structure, and supernova cosmology if approached from a hierarchical Bayesian perspective.  This work studies $p(z,\vec{\alpha})$ data products from two perspectives.  We apply various methods for deriving posterior probability distributions over $z$ and $\vec{\alpha}$.  We also explore usage cases for these data products and propose approaches to inference based upon them.
-
 \end{abstract}
 
-
 \section{Introduction}
-
-
 
 \section{Data}
 
@@ -130,16 +125,19 @@ We attempted to derive $p(z,\vec{\alpha})$ data products using methods from two 
 
 \subsection{Machine Learning}
 
+One weakness of machine learning is that it cannot extrapolate, so if the training set does not span the full space of the test set, the results will be unreliable.
 
+\subsubsection{k Nearest Neighbors}
+
+\subsection{Random Forests}
 
 \subsection{Template Fitting}
 
-
-
 \section{Results}
 
+\section{Discussion}
 
-
+\section{Conclusion}
 
 \end{document}
 
