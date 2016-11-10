@@ -1,5 +1,4 @@
 import george
-from george.kernels import ExpKernel , WhiteKernel
 import data
 import util 
 import numpy as np
@@ -7,10 +6,10 @@ from sklearn.preprocessing import RobustScaler
 from scipy.stats import beta
 import numpy as np
 import matplotlib.pyplot as plt
-import seaborn as sns
-sns.set_context("notebook", font_scale=1.5, rc={"lines.linewidth": 2.5})
+#import seaborn as sns
+#sns.set_context("notebook", font_scale=1.5, rc={"lines.linewidth": 2.5})
 from matplotlib import gridspec
-import GPy
+from sklearn.ensemble import RandomForestClassifier
 
 RS = RobustScaler()
 
@@ -19,11 +18,11 @@ def data_vectors():
     X_test = np.loadtxt(util.dat_dir()+"X_test.dat")
     X_train = np.loadtxt(util.dat_dir()+"X_train.dat")
    
-    X_test = np.loadtxt(util.dat_dir()+"Xerr_test.dat")
-    X_train = np.loadtxt(util.dat_dir()+"Xerr_train.dat")
+    Xerr_test = np.loadtxt(util.dat_dir()+"Xerr_test.dat")
+    Xerr_train = np.loadtxt(util.dat_dir()+"Xerr_train.dat")
     
-    Y_test = np.loadtxt(util.dat_dir()+"X_test.dat")
-    Y_train = np.loadtxt(util.dat_dir()+"X_train.dat")
+    Y_test = np.loadtxt(util.dat_dir()+"Y_test.dat")
+    Y_train = np.loadtxt(util.dat_dir()+"Y_train.dat")
     
     return X_test, X_train, Y_test, Y_train
 
@@ -38,6 +37,70 @@ def scaler():
     test_Y  = Y_test   
     
     return train_X, train_Y, test_X, test_Y    
+
+
+def rf(num_bins, num_estimators):
+    
+    """
+    random forrest classifier for determining p(z)'s.
+    inputs:
+    num_bins = number of redshift bins,
+    num_estimators = number of estimators in scikit-learn random forrest classifier,
+    outputs:
+    label probabilities + best predictions + feature importance
+    """
+    """ Binning the redshifts"""
+   
+    X_train, Y_train, test_X, test_Y = scaler()
+   
+    nbins = num_bins
+    zmin, zmax = min(Y_train[:,0]), max(Y_train[:,0])
+    Mmin, Mmax = min(Y_train[:,1]), max(Y_train[:,1])
+   
+    print Mmin , Mmax, zmin, zmax
+ 
+    zgrid = np.linspace(zmin, zmax, nbins)
+    Mgrid = np.linspace(Mmin, Mmax, nbins)
+
+    binsize1 = (zmax - zmin)/ nbins
+    binsize2 = (Mmax - Mmin)/ nbins
+    
+    L = np.zeros((len(Y_train)))
+    
+        
+    """ Labeling the bins """
+    for i in range(nbins):
+        for j in range(nbins):
+            ij = np.where((Y_train[:,0]>=zmin+i*binsize1)&(Y_train[:,0]<zmin+(i+1)*binsize1)&(Y_train[:,1]>=Mmin+j*binsize2)&(Y_train[:,1]<Mmin+(j+1)*binsize2))[0]
+            #print ij, "ball"
+            L[ij] = i * nbins + j
+    print "binned data=" , L
+     
+    #for i in range(nbins):
+    #  Y[(Y>=zmin)&(Y<zmin*i+binsize)] = i
+    #  Y[Y<1] = 0
+        
+    """ Splitting the data into training and test sets"""
+    
+    L = L.astype(int)
+    
+    """ Setting up the RF classifier"""
+    clf = RandomForestClassifier(n_estimators=num_estimators, max_depth=None,min_samples_split=1, random_state=0)
+    clf.n_classes_ = nbins * nbins
+    clf.classes_ = np.arange(nbins*nbins)    
+    """ training """
+    clf.fit(X_train, L)
+    """feature importance """
+    fi = clf.feature_importances_
+    
+    """best predictions"""
+    Y_pred = clf.predict(test_X)
+    """label probabilities"""
+    prob = clf.predict_proba(test_X)    
+    """transformation quantities """
+    trans = zmin , Mmin, binsize1, binsize2
+
+    return prob.reshape(len(test_X), nbins-1, nbins-1), Y_pred, trans
 
 
 def plot_distribution():
@@ -100,7 +163,10 @@ def plot_distribution():
 if __name__ == '__main__':
 
     
-   #fraction = 0.6
-   #random_spliter(fraction)
-   #plot_distribution()
-   GPregression()
+   prob , bestfit , trans = rf(num_bins = 10, num_estimators=200) 
+
+   for i in range(prob.shape[0]):
+       plt.imshow(prob[i], interpolation = 'none')
+       plt.colorbar()
+       plt.show()
+       plt.close()
