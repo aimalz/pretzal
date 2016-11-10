@@ -71,11 +71,10 @@ def rf(num_bins, num_estimators):
     """ Labeling the bins """
     for i in range(nbins):
         for j in range(nbins):
-            ij = np.where((Y_train[:,0]>=zmin+i*binsize1)&(Y_train[:,0]<zmin+(i+1)*binsize1)&(Y_train[:,1]>=Mmin+j*binsize2)&(Y_train[:,1]<Mmin+(j+1)*binsize2))[0]
+            ij = np.where((Y_train[:,0]>=zmin+i*binsize1)&(Y_train[:,0]<zmin+(i+1)*binsize1)&(Y_train[:,1]>=Mmin+j*binsize2)&(Y_train[:,1]<Mmin+(j+1)*binsize2))
             #print ij, "ball"
             L[ij] = [i,j]
      
-        
     """ Splitting the data into training and test sets"""
     
     #L = L.astype(int)
@@ -83,9 +82,8 @@ def rf(num_bins, num_estimators):
     """ Setting up the RF classifier"""
 
     clf = RandomForestClassifier(n_estimators=num_estimators, max_depth=None, min_samples_split=1, random_state=0)
-    #clf.n_classes_ = nbins * nbins
+    clf.n_classes_ = [nbins , nbins]
     #clf.classes_ = np.arange(nbins * nbins)    
-    #print clf
     """ training """
     clf.fit(X_train, L)
     """feature importance """
@@ -96,7 +94,7 @@ def rf(num_bins, num_estimators):
     """label probabilities"""
     prob = clf.predict_proba(test_X) 
     """transformation quantities """
-    trans = zmin , Mmin, binsize1, binsize2
+    trans = zmin , binsize1, Mmin, binsize2
 
     return prob , Y_pred, trans
 
@@ -160,11 +158,34 @@ def plot_distribution():
 
 if __name__ == '__main__':
 
+    from matplotlib.colors import LogNorm
     
-    prob , bestfit , trans = rf(num_bins = 20, num_estimators=100) 
+    X_train, Y_train, test_X, test_Y = scaler()
+    
+    prob , bestfit , trans = rf(num_bins = 20, num_estimators=500) 
+    zmin , binsize1, Mmin, binsize2 = trans
 
-    for i in range(prob[0].shape[0]):
-       plt.plot(np.arange(len(prob[0][i,:])) , np.array(prob[0][i,:]), color='blue' , drawstyle='steps-mid')
-       #plt.imshow(prob[i], interpolation = 'none')
-       plt.show()
+    print prob[0].shape
+    print prob[1].shape
+
+    zrange = zmin + binsize1 * np.arange(10)
+    mrange = Mmin + binsize2 * np.arange(10)
+
+    for i in range(prob[1].shape[0]):
+
+       
+       image = prob[0][i,:][:,None] * prob[1][i,:][None,:] 
+       image = image / np.sum(image)     
+       plt.imshow(image , interpolation = "none", cmap = plt.cm.viridis)#,norm=LogNorm(vmin=-0.0000001, vmax=1))
+       plt.colorbar()
+       plt.savefig(util.fig_dir()+str(i)+".png")
+       plt.close()
+
+       plt.plot(mrange, np.array(prob[1][i,:]), color='blue' , drawstyle='steps-mid')
+       plt.axvline(x=test_Y[i,1], color='k', linestyle='--') 
+       plt.savefig(util.fig_dir()+str(i)+"m.png")
+       plt.close()
+       plt.plot(zrange, np.array(prob[0][i,:]), color='blue' , drawstyle='steps-mid')
+       plt.axvline(x=test_Y[i,0], color='k', linestyle='--') 
+       plt.savefig(util.fig_dir()+str(i)+"z.png")
        plt.close()

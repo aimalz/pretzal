@@ -11,7 +11,7 @@ def filter():
     generate indices for downsampling of the data
     '''
     np.random.seed(12345)
-    N = 50000 # hard-coded number for downsampling the galaxies
+    N = 80000 # hard-coded number for downsampling the galaxies
     indices = np.random.choice(5000000, N)	
 
     return indices
