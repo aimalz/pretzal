@@ -52,13 +52,26 @@ class PhotometryData(object):
         return None
 
     def lnprior(self, p):
-        return 0.0
+        valid_params = self.model.set_params(p)
+        try:
+            r = self.model.get_magnitude('r')
+        except ValueError:
+            return -np.inf
+        lnp_mag = -0.5 * (r - 20.)**2 / 24.
+        lnp_z = -(self.model.redshift / 3.)**2
+        return lnp_mag + lnp_z
 
     def lnlike(self, p, *args, **kwargs):
         valid_params = self.model.set_params(p)
         if valid_params:
             # m = np.array([self.model.get_magnitude(f) for f in self.filter_names])
-            m = self.model.get_colors()
+            try:
+                ## If the SED is redshifted out of nominal wavelength range,
+                ## then we can get a ValueError from GalSim. This is a bad 
+                ## model parameter choice and should return a small likelihood.
+                m = self.model.get_colors()
+            except ValueError:
+                return -np.inf
             delta = self.data - m
             chisq = np.sum(delta**2 / self.sigma_sq)
             return -0.5 * chisq
@@ -81,7 +94,7 @@ def do_sampling(args, phot):
     p0 = phot.model.get_params()
     print "Starting params:", p0
     nvars = len(p0)
-    p0 = emcee.utils.sample_ball(p0, np.ones_like(p0) * 0.01, args.nwalkers)
+    p0 = emcee.utils.sample_ball(p0, np.ones_like(p0) * 0.1, args.nwalkers)
     sampler = emcee.EnsembleSampler(args.nwalkers,
                                     nvars,
                                     phot,
@@ -124,11 +137,12 @@ def write_results(args, pps, lnps):
 
 def plot(args, pps, lnps, plotfile, keeplast=0):
     n = len(sedmod.k_SED_names)
-    paramnames = ['z'] + ['sed_lnflux{:d}'.format(i+1) for i in xrange(n)]
+    paramnames = ['z'] + ['sed_mag{:d}'.format(i+1) for i in xrange(n)]
     print "paramnames:", paramnames
     print "data:", np.vstack(pps).shape
 
-    truths = np.loadtxt("sedz_test_truths.txt")
+    # truths = np.loadtxt("sedz_test_truths.txt")
+    truths = [1.12, 25.9, 25.9, 25.9, 25.9]
 
     fig = corner.corner(np.vstack(pps[-keeplast:,:, 0:(n+1)]),
                           labels=paramnames, 
@@ -190,9 +204,9 @@ def main():
     logging.debug('--- Starting MCMC sampling')
 
     phot = PhotometryData()
-    # infile = "../dat/X_test.dat"
-    infile = "sedz_test.dat"
-    phot.load(infile, 0)
+    infile = "../dat/X_test.dat"
+    # infile = "sedz_test.dat"
+    phot.load(infile, 1)
 
     pps, lnps = do_sampling(args, phot)
 
