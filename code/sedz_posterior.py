@@ -32,6 +32,7 @@ class PhotometryData(object):
     """
     def __init__(self):
         self.model = sedmod.SEDModelGalSim()
+        self.use_prior = True
 
     def load(self, infile, source_index=0):
         """
@@ -44,7 +45,6 @@ class PhotometryData(object):
         self.filter_names = ['u', 'g', 'r', 'i', 'z', 'y']
         # self.data = np.array([22., 22.1, 22.2, 22.3, 22.4, 22.5])
         self.sigma_sq = 0.01 ## Hard-coded mag rms of 0.1
-
 
         dat = np.loadtxt(infile)
 
@@ -79,10 +79,32 @@ class PhotometryData(object):
             return -np.inf
 
     def __call__(self, p, *args, **kwargs):
-        return self.lnlike(p, *args, **kwargs) + self.lnprior(p)        
+        lnp = self.lnlike(p, *args, **kwargs)
+        if self.use_prior:
+            lnp += self.lnprior(p)
+        return lnp
 
 
-def do_sampling(args, phot):
+class PhotometryPrior(object):
+
+    def __init__(self):
+        self.model = sedmod.SEDModelGalSim()
+
+    def lnprior(self, p):
+        valid_params = self.model.set_params(p)
+        try:
+            r = self.model.get_magnitude('r')
+        except ValueError:
+            return -np.inf
+        lnp_mag = -0.5 * (r - 20.)**2 / 24.
+        lnp_z = -(self.model.redshift / 3.)**2
+        return lnp_mag + lnp_z
+
+    def __call__(self, p, *args, **kwargs):
+        return self.lnprior(p)
+
+
+def do_sampling(args, phot, sampler_type="ensemble"):
     """
     @brief      Run MCMC 
     
@@ -95,10 +117,23 @@ def do_sampling(args, phot):
     print "Starting params:", p0
     nvars = len(p0)
     p0 = emcee.utils.sample_ball(p0, np.ones_like(p0) * 0.1, args.nwalkers)
-    sampler = emcee.EnsembleSampler(args.nwalkers,
-                                    nvars,
-                                    phot,
-                                    threads=args.nthreads)
+
+    if sampler_type == "ensemble":
+        sampler = emcee.EnsembleSampler(args.nwalkers,
+                                        nvars,
+                                        phot,
+                                        threads=args.nthreads)
+    elif sampler_type == "parallel":
+        phot_prior = PhotometryPrior()
+        phot.use_prior = False
+        sampler = emcee.PTSampler(args.ntemps,
+                                  args.nwalkers,
+                                  nvars, 
+                                  phot,
+                                  phot_prior)
+    else:
+        raise KeyError("Unsupported sampler type")
+
     nburn = max([1,args.nburn])
     logging.info("Burning with {:d} steps".format(nburn))
     pp, lnp, rstate = sampler.run_mcmc(p0, nburn)
@@ -200,6 +235,12 @@ def main():
 
     parser.add_argument("--quiet", action='store_true')
 
+    parser.add_argument("--sampler_type", type=str, default="ensemble",
+                        help="Type of emcee sampler ['ensemble', 'parallel']")
+
+    parser.add_argument("--ntemps", type=int, default=20,
+                        help="Number of temperatures for Parallel Tempering (default: 20)")
+
     args = parser.parse_args()
     logging.debug('--- Starting MCMC sampling')
 
@@ -208,7 +249,7 @@ def main():
     # infile = "sedz_test.dat"
     phot.load(infile, 1)
 
-    pps, lnps = do_sampling(args, phot)
+    pps, lnps = do_sampling(args, phot, sampler_type=args.sampler_type)
 
     write_results(args, pps, lnps)
     print "pps:", pps.shape
