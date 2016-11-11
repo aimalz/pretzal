@@ -33,14 +33,22 @@ class PhotometryData(object):
     def __init__(self):
         self.model = sedmod.SEDModelGalSim()
 
-    def load(self, infile):
+    def load(self, infile, source_index=0):
         """
         Load measured magnitudes from file
+
+        @param infile       Name of the data file to load
+        @param source_index Index of the source colors to select
         """
         # FIXME: Replace hard-coded values with those from input file
         self.filter_names = ['u', 'g', 'r', 'i', 'z', 'y']
-        self.data = np.array([22., 22.1, 22.2, 22.3, 22.4, 22.5])
-        self.sigma_sq = 0.25
+        # self.data = np.array([22., 22.1, 22.2, 22.3, 22.4, 22.5])
+        self.sigma_sq = 0.01 ## Hard-coded mag rms of 0.1
+
+
+        dat = np.loadtxt(infile)
+
+        self.data = dat[source_index, :]
         return None
 
     def lnprior(self, p):
@@ -49,7 +57,8 @@ class PhotometryData(object):
     def lnlike(self, p, *args, **kwargs):
         valid_params = self.model.set_params(p)
         if valid_params:
-            m = np.array([self.model.get_magnitude(f) for f in self.filter_names])
+            # m = np.array([self.model.get_magnitude(f) for f in self.filter_names])
+            m = self.model.get_colors()
             delta = self.data - m
             chisq = np.sum(delta**2 / self.sigma_sq)
             return -0.5 * chisq
@@ -115,12 +124,15 @@ def write_results(args, pps, lnps):
 
 def plot(args, pps, lnps, plotfile, keeplast=0):
     n = len(sedmod.k_SED_names)
-    paramnames = ['z'] + ['sed_mag{:d}'.format(i+1) for i in xrange(n)]
+    paramnames = ['z'] + ['sed_lnflux{:d}'.format(i+1) for i in xrange(n)]
     print "paramnames:", paramnames
     print "data:", np.vstack(pps).shape
 
+    truths = np.loadtxt("sedz_test_truths.txt")
+
     fig = corner.corner(np.vstack(pps[-keeplast:,:, 0:(n+1)]),
-                          labels=paramnames)
+                          labels=paramnames, 
+                          truths=truths)
     logging.info("Saving {}".format(plotfile))
     fig.savefig(plotfile)
 
@@ -178,7 +190,9 @@ def main():
     logging.debug('--- Starting MCMC sampling')
 
     phot = PhotometryData()
-    phot.load("")
+    # infile = "../dat/X_test.dat"
+    infile = "sedz_test.dat"
+    phot.load(infile, 0)
 
     pps, lnps = do_sampling(args, phot)
 

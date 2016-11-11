@@ -13,7 +13,8 @@ import galsim
 
 ### Define the possible SED templates in the model
 k_SED_names = ['NGC_0695_spec', 'NGC_4125_spec', 'NGC_4552_spec', 'CGCG_049-057_spec']
-
+### Relative error for GalSim bandpass and SED 'thinning'
+k_rel_err = 1e-2
 
 class SEDModelGalSim(object):
     """
@@ -24,12 +25,15 @@ class SEDModelGalSim(object):
     def __init__(self, telescope_name="LSST", ref_filter_name='r'):
         self.telescope_name = telescope_name
         self.ref_filter_name = ref_filter_name
+        # self.ref_wavelength = 620. ## nm
 
         ## Initialize model parameters
         ## A single redshift parameter 
-        self.redshift = 1.0
+        self.redshift = 0.87
         ## A 'magnitude' parameter to set the amplitude of each SED template
-        self.mags = [20.0 for i in xrange(len(k_SED_names))]
+        # self.mags = [24. for i in xrange(len(k_SED_names))]
+        self.mags = [24., 99., 99., 99.]
+        # self.lnfluxes = [0. for i in xrange(len(k_SED_names))] ## photons/nm
 
         self._load_sed_files()
         self._load_filter_files()
@@ -46,7 +50,10 @@ class SEDModelGalSim(object):
         for SED_name in k_SED_names:
             SED_filename = os.path.join(datapath, '{0}.sed'.format(SED_name))
             self.SEDs[SED_name] = galsim.SED(SED_filename, wave_type='Ang',
-                                             flux_type='flambda')
+                                             flux_type='flambda').thin(
+                                             rel_err=k_rel_err,
+                                             preserve_range=True,
+                                             fast_search=True)
         return None
 
     def _load_filter_files(self, wavelength_scale=1.0):
@@ -57,6 +64,7 @@ class SEDModelGalSim(object):
                                     input from the filter files to get
                                     nanometers from whatever the input units are
         """
+        self.filter_names = ['u', 'g', 'r', 'i', 'z', 'y']
         self.filters = load_filter_files(wavelength_scale, self.telescope_name)
 
     def get_params(self):
@@ -66,15 +74,17 @@ class SEDModelGalSim(object):
         For use in, e.g., emcee
         """
         return [self.redshift] + self.mags
+        # return [self.redshift] + self.lnfluxes
 
     def set_params(self, p):
         """
         Set model parameters from an input list [redshift, mags]
         """
         valid = False
-        if np.all(p > 0.):
+        if np.all(p > 0.) and np.all(p[1:len(p)] < 100.):
             self.redshift = p[0]
             self.mags = p[1:len(p)]
+            # self.lnfluxes = p[1:len(p)]
             valid = True
         return valid
 
@@ -95,6 +105,11 @@ class SEDModelGalSim(object):
             target_magnitude=self.mags[i],
             bandpass=bp).atRedshift(self.redshift)
                 for i, SED_name in enumerate(k_SED_names)]
+
+        # SEDs = [self.SEDs[SED_name].atRedshift(0.).withFluxDensity(
+        #     target_flux_density=np.exp(self.lnfluxes[i]),
+        #     wavelength=self.ref_wavelength).atRedshift(self.redshift)
+        #         for i, SED_name in enumerate(k_SED_names)]
         return reduce(add, SEDs)
 
     def get_flux(self, filter_name='r'):
@@ -118,6 +133,15 @@ class SEDModelGalSim(object):
         """
         SED = self.get_SED()
         return SED.calculateMagnitude(self.filters[filter_name])
+
+    def get_colors(self):
+        """
+        Get the colors for this SED, z and set of bandpasses
+        """
+        m = np.array([self.get_magnitude(f) for f in self.filter_names])
+        colors = -np.diff(m)
+        r = m[2]
+        return np.concatenate((colors, [r]))
 
 
 def load_filter_file_to_bandpass(table, wavelength_scale=1.0,
@@ -143,7 +167,7 @@ def load_filter_file_to_bandpass(table, wavelength_scale=1.0,
     elif not isinstance(table, galsim.LookupTable):
         raise ValueError("table must be a file name or galsim.LookupTable")
     bp = galsim.Bandpass(table, wave_type='nm')
-    bp = bp.thin(rel_err=1e-4)
+    bp = bp.thin(rel_err=k_rel_err)
     return bp.withZeropoint(zeropoint='AB',
         effective_diameter=effective_diameter_meters,
         exptime=exptime_sec)
@@ -180,3 +204,16 @@ def load_filter_files(wavelength_scale=1.0, telescope_name="LSST",
             )
     return filters
 
+
+if __name__ == "__main__":
+    ## Generate some test data for input to sedz_posterior.py
+    model = SEDModelGalSim()
+    colors = model.get_colors()
+    print colors
+    colors_out = np.zeros((2, 6), dtype=np.float64)
+    colors_out[0,:] = colors
+    np.savetxt("sedz_test.dat", colors_out)
+
+    ## Save truths
+    p = model.get_params()
+    np.savetxt("sedz_test_truths.txt", p)
