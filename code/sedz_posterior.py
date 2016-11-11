@@ -103,6 +103,9 @@ class PhotometryPrior(object):
     def __call__(self, p, *args, **kwargs):
         return self.lnprior(p)
 
+def walker_temp_ball(p, spread, ntemps, nwalkers):
+    return [[p+(np.random.rand(len(p))*spread-0.5*spread) for i in xrange(nwalkers)]
+            for j in xrange(ntemps)]
 
 def do_sampling(args, phot, sampler_type="ensemble"):
     """
@@ -116,14 +119,16 @@ def do_sampling(args, phot, sampler_type="ensemble"):
     p0 = phot.model.get_params()
     print "Starting params:", p0
     nvars = len(p0)
-    p0 = emcee.utils.sample_ball(p0, np.ones_like(p0) * 0.1, args.nwalkers)
 
     if sampler_type == "ensemble":
+        p0 = emcee.utils.sample_ball(p0, np.ones_like(p0) * 0.1, args.nwalkers)
         sampler = emcee.EnsembleSampler(args.nwalkers,
                                         nvars,
                                         phot,
                                         threads=args.nthreads)
     elif sampler_type == "parallel":
+        # p0 = np.random.uniform(low=1., high=5.0, size=(args.ntemps, args.nwalkers, nvars))
+        p0 = walker_temp_ball(p0, 0.1, args.ntemps, args.nwalkers)
         phot_prior = PhotometryPrior()
         phot.use_prior = False
         sampler = emcee.PTSampler(args.ntemps,
@@ -136,24 +141,49 @@ def do_sampling(args, phot, sampler_type="ensemble"):
 
     nburn = max([1,args.nburn])
     logging.info("Burning with {:d} steps".format(nburn))
-    pp, lnp, rstate = sampler.run_mcmc(p0, nburn)
-    sampler.reset()
-    pps = []
-    lnps = []
-    lnpriors = []
-    logging.info("Sampling")
-    for i in range(args.nsamples):
-        if np.mod(i+1, 10) == 0:
-            print "\tStep {:d} / {:d}, lnp: {:5.4g}".format(i+1, args.nsamples,
-                np.mean(pp))
-        pp, lnp, rstate = sampler.run_mcmc(pp, 1, lnprob0=lnp, rstate0=rstate)
-        if not args.quiet:
-            print i, np.mean(lnp)
-            print np.mean(pp, axis=0)
-            print np.std(pp, axis=0)
-        lnprior = np.array([phot.lnprior(p) for p in pp])
-        pps.append(np.column_stack((pp.copy(), lnprior)))
-        lnps.append(lnp.copy())
+    if sampler_type == "ensemble":
+        pp, lnp, rstate = sampler.run_mcmc(p0, nburn)
+        sampler.reset()
+        pps = []
+        lnps = []
+        lnpriors = []
+        logging.info("Running Ensemble sampler")
+        for i in range(args.nsamples):
+            if np.mod(i+1, 10) == 0:
+                print "\tStep {:d} / {:d}, lnp: {:5.4g}".format(i+1, args.nsamples,
+                    np.mean(pp))
+            pp, lnp, rstate = sampler.run_mcmc(pp, 1, lnprob0=lnp, rstate0=rstate)
+            if not args.quiet:
+                print i, np.mean(lnp)
+                print np.mean(pp, axis=0)
+                print np.std(pp, axis=0)
+            lnprior = np.array([phot.lnprior(p) for p in pp])
+            pps.append(np.column_stack((pp.copy(), lnprior)))
+            lnps.append(lnp.copy())
+    elif sampler_type == "parallel":
+        # burn-in
+        for p, lnprob, lnlike in sampler.sample(p0, iterations=nburn):
+            pass
+        sampler.reset()
+        logging.info("Running Parallel Tempering sampler")
+        lnps = np.zeros((args.nsamples, args.nwalkers))
+        isamp = 0
+        for p, lnprob, lnlike in sampler.sample(p, 
+                                                lnprob0=lnprob,
+                                                lnlike0=lnlike,
+                                                iterations=args.nsamples, 
+                                                thin=1):
+            lnps[isamp, :] = lnprob[0,...]
+            isamp += 1
+        logging.debug("Finished Parallel Tempering sampler")
+        print sampler.chain.shape
+        # pps = sampler.chain[0, ...] ## Return only zero-temp samples
+        pps = np.zeros((args.nsamples, args.nwalkers, nvars+1), dtype=np.float64)
+        for isamp in xrange(args.nsamples):
+            pps[isamp, :, 0:nvars] = sampler.chain[0, :, isamp, :]
+        print "lnps:", np.array(lnps).shape
+    else:
+        raise KeyError("Unsupported sampler type")
     return np.array(pps), np.array(lnps)
 
 
