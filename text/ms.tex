@@ -115,6 +115,12 @@ Posterior probability distributions over photometric redshift (photo-$z$) are ra
 
 \section{Introduction}
 
+\begin{figure}
+\includegraphics[width=0.5\textwidth]{../fig/1pt.png}
+\caption{This figure shows a graphical model for the problem we wish to investigate.  The photometric data $\vec{d}$ is completely characterized by the redshift $z$ and the parameters $\vec{\alpha}$ that determine the template shape.  $z$ and $\alpha$ are drawn from a distribution function specified by parameters comprising $\vec{\Phi}$.}
+\label{fig:1pt}
+\end{figure}
+
 \section{Data}
 
 We use the Buzzard mock galaxy catalog for this work because it employs a generative model by which data is consistently produced by physically-motivated processes.
@@ -134,6 +140,54 @@ One weakness of machine learning is that it cannot extrapolate, so if the traini
 \subsection{Template Fitting}
 
 \section{Results}
+
+\subsection{Machine Learning}
+
+The machine learning methods are sensitive to the size and diversity of the training set.
+
+\subsubsection{k Nearest Neighbors}
+
+The nearest neighbor algorithm produces results using the least resources and is insensitive to the number of classes.
+
+\begin{figure}
+\includegraphics[width=1.\textwidth]{../fig/knn3.png}\\
+\includegraphics[width=0.5\textwidth]{../fig/knn3z.png}\includegraphics[width=0.5\textwidth]{../fig/knn3m.png}
+\caption{}
+\label{fig:knn-bad}
+\end{figure}
+
+\begin{figure}
+\includegraphics[width=1.\textwidth]{../fig/knn8.png}\\
+\includegraphics[width=0.5\textwidth]{../fig/knn8z.png}\includegraphics[width=0.5\textwidth]{../fig/knn8m.png}
+\caption{}
+\label{fig:knn-good}
+\end{figure}
+
+\subsection{Random Forests}
+
+Random forests is sensitive to the number of classes and is very memory intensive.
+
+\begin{figure}
+\includegraphics[width=0.3\textwidth]{../fig/rf3.png}\includegraphics[width=0.3\textwidth]{../fig/rf3z.png}\includegraphics[width=0.3\textwidth]{../fig/rf3m.png}
+\caption{}
+\label{fig:rf-good}
+\end{figure}
+
+\begin{figure}
+\includegraphics[width=0.3\textwidth]{../fig/rf8.png}\includegraphics[width=0.3\textwidth]{../fig/rf8z.png}\includegraphics[width=0.3\textwidth]{../fig/rf8m.png}
+\caption{}
+\label{fig:rf-good}
+\end{figure}
+
+\subsection{Template Fitting}
+
+Template fitting with MCMC is much slower and must be run on individual galaxies in the test set.  Rather than fitting $\alpha$, it fits for the template coefficients, which may then be backtracked to $\alpha$.
+
+\begin{figure}
+\includegraphics[width=1.\textwidth]{../fig/sed_model_galsim_corner.png}
+\caption{}
+\label{fig:temp}
+\end{figure}
 
 \section{Discussion}
 
