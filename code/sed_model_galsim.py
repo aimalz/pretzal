@@ -14,7 +14,7 @@ import galsim
 ### Define the possible SED templates in the model
 k_SED_names = ['NGC_0695_spec', 'NGC_4125_spec', 'NGC_4552_spec', 'CGCG_049-057_spec']
 ### Relative error for GalSim bandpass and SED 'thinning'
-k_rel_err = 1e-2
+k_rel_err = 4.e-2
 
 class SEDModelGalSim(object):
     """
@@ -31,8 +31,8 @@ class SEDModelGalSim(object):
         ## A single redshift parameter 
         self.redshift = 0.87
         ## A 'magnitude' parameter to set the amplitude of each SED template
-        # self.mags = [24. for i in xrange(len(k_SED_names))]
-        self.mags = [24., 99., 99., 99.]
+        self.mags = [24. for i in xrange(len(k_SED_names))]
+        # self.mags = [24., 99., 99., 99.]
         # self.lnfluxes = [0. for i in xrange(len(k_SED_names))] ## photons/nm
 
         self._load_sed_files()
