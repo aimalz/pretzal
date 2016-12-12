@@ -46,6 +46,8 @@ citecolor=darkblue}
 %\newcommand{\comment}[1]{{\bf \textcolor{red}{ #1}}}
 \newcommand{\todo}[1]{{\em \textcolor{red}{ #1}}}
 
+\newcommand{\textul}{\underline}
+
 %% preprint2 produces a double-column, single-spaced document:
 
 %% \documentclass[preprint2]{aastex}
@@ -88,7 +90,7 @@ citecolor=darkblue}
 %% LaTeX will automatically break titles if they run longer than
 %% one line. However, you may use \\ to force a line break if
 %% you desire.
-\title{Inference of probability distributions over redshifts and other galaxy properties}
+\title{Inference of probability distributions over redshifts\\ and other galaxy properties}
 
 \author{A.I. Malz\altaffilmark{1}}
 \author{Mohammadjavad Vakili\altaffilmark{1}}
@@ -110,10 +112,14 @@ citecolor=darkblue}
 
 
 \begin{abstract}
-Posterior probability distributions over photometric redshift (photo-$z$) are rapidly replacing photo-$z$ point estimators as data products of current and future galaxy surveys.  It is desirable not only to have probabilities over redshift $z$ but also over other parameters $\vec{\alpha}$, both directly measurable (ellipticity, size, etc.) and not (stellar mass, star formation history, etc.).  Such hypothetical data products could be informative for studies of weak gravitational lensing, large-scale structure, and supernova cosmology if approached from a hierarchical Bayesian perspective.  This work studies $p(z,\vec{\alpha})$ data products from two perspectives.  We apply various methods for deriving posterior probability distributions over $z$ and $\vec{\alpha}$.  We also explore usage cases for these data products and propose approaches to inference based upon them.
+Posterior probability distributions over photometric redshifts (photo-$z$s) are rapidly replacing photo-$z$ point estimators as data products of current and future galaxy surveys.  It is desirable not only to have probabilities over redshift $z$ but also over other parameters $\vec{\alpha}$, both those that are directly measurable from photometry (ellipticity, size, etc.) and those that are not (stellar mass, star formation history, etc.).  Such hypothetical data products could be informative for studies of weak gravitational lensing, large-scale structure, and supernova cosmology if approached from a hierarchical Bayesian perspective.  This work studies $p(z,\vec{\alpha})$ data products from two perspectives.  We apply various methods for deriving joint posterior probability distributions over $z$ and $\vec{\alpha}$.  We also explore usage cases for these data products and propose approaches to inference based upon them.
 \end{abstract}
 
 \section{Introduction}
+
+The goal of this work is to develop and compare methods for deriving $p(z,\vec{\alpha})$ data products and to provide suggestions of best practices for using them in cosmological parameter inference.
+
+There are two classes of parameters $\vec{\alpha}$ that we will consider, those that are not directly observable (stellar mass, star formation history, etc.) and those that are measurable (ellipticity, size, etc.).  Fig. \ref{fig:1pt} shows a probabilistic graphical model for an unobservable $\vec{\alpha}=M^{*}$.
 
 \begin{figure}
 \includegraphics[width=0.5\textwidth]{../fig/1pt.png}
@@ -121,9 +127,29 @@ Posterior probability distributions over photometric redshift (photo-$z$) are ra
 \label{fig:1pt}
 \end{figure}
 
+Related to this graphical model is the hierarchical model characterized by Eq. \ref{eq:mass-general}.  Here, $z_{n}$ is the redshift, $M^{*}_{n}$ is the stellar mass, $\vec{m}_{n}$ is comprised of the photometric magnitudes in each of several filters, $\vec{t}_{n}$ is comprised of the template coefficients, and $\textul{d}_{n}$ is measured fluxes and observational errors in each of several filters.
+
+\begin{align}
+\label{eq:mass-general}
+p(z_{n}, M^{*}_{n}|\textul{d}_{n}) &= \int\ d\vec{t}_{n}\ d\vec{m}_{n}\ p(z_{n}, \vec{t}_{n}|\vec{m}_{n})\ p(\vec{m}_{n}|\textul{d}_{n})\ p(M^{*}_{n}|\vec{t}_{n})
+\end{align}
+
+For a measurable quantity, there are other considerations because we already have access to contributing probability distributions.  
+
+For example, the joint probability distribution over redshift and ellipticity for galaxy $n$ in a survey of $N$ galaxies will follow Eq. \ref{eq:ellipticity-general}.  Here, $z_{n}$ is the redshift, $\vec{e}_{n}$ is composed of the pair of parameters defining the axis ratio and orientation, $\vec{m}_{n}$ is comprised of the photometric magnitudes in each of several filters, and $\textul{d}_{n}$ is the image of $P$ pixels each with measured fluxes and observational errors in every pixel.  
+
+\begin{align}
+\label{eq:ellipticity-general}
+p(z_{n}, \vec{e}_{n}|\textul{d}_{n}) &= \int\ d\vec{m_{n}}\ p(z_{n}|\vec{m}_{n})\ p(\vec{m}_{n}, \vec{e}_{n}|\textul{d}_{n})
+\end{align}
+
 \section{Data}
 
 We use the Buzzard mock galaxy catalog for this work because it employs a generative model by which data is consistently produced by physically-motivated processes.
+
+Buzzard data for one segment of the sky was obtained and subsampled to make a testbed dataset comprised of the magnitudes and Gaussian errors
+
+We started with a little slice of Buzzard data that we subsampled and divided into a training and test set, using the kcorrect template coefficients to derive M* and a couple measures of SFH.  We did not deal with pixel-level alphas such as ellipticity, just the "unobservables"
 
 \section{Methods}
 
@@ -131,13 +157,15 @@ We attempted to derive $p(z,\vec{\alpha})$ data products using methods from two 
 
 \subsection{Machine Learning}
 
-One weakness of machine learning is that it cannot extrapolate, so if the training set does not span the full space of the test set, the results will be unreliable.
+One weakness of machine learning is that it cannot extrapolate, so if the training set $\textul{T}$ does not span the full space of the test set $\textul{D}$, the results will be unreliable.
 
 \subsubsection{k Nearest Neighbors}
 
 \subsection{Random Forests}
 
 \subsection{Template Fitting}
+
+Rather than fitting $\alpha$, it fits for the template coefficients (based on templates $\textul{T}$), which may then be backtracked to obtain $\alpha$.
 
 \section{Results}
 
@@ -152,7 +180,7 @@ The nearest neighbor algorithm produces results using the least resources and is
 \begin{figure}
 \includegraphics[width=1.\textwidth]{../fig/knn3.png}\\
 \includegraphics[width=0.5\textwidth]{../fig/knn3z.png}\includegraphics[width=0.5\textwidth]{../fig/knn3m.png}
-\caption{}
+\caption{This figure shows an example of the two-dimensional $p(z,\vec{alpha}|\vec{d},\textul{T}$ and the marginal distributions over $z$ and $\alpha=M_{*}$.  In this example, there is nontrivial covariance between $z$ and $M_{*}$}
 \label{fig:knn-bad}
 \end{figure}
 
@@ -181,8 +209,7 @@ Random forests is sensitive to the number of classes and is very memory intensiv
 
 \subsection{Template Fitting}
 
-Template fitting with MCMC is much slower and must be run on individual galaxies in the test set.  Rather than fitting $\alpha$, it fits for the template coefficients, which may then be backtracked to $\alpha$.
-
+Template fitting with MCMC is much slower and must be run on individual galaxies in the dataset.  
 \begin{figure}
 \includegraphics[width=1.\textwidth]{../fig/sed_model_galsim_corner.png}
 \caption{}
@@ -192,6 +219,8 @@ Template fitting with MCMC is much slower and must be run on individual galaxies
 \section{Discussion}
 
 \section{Conclusion}
+
+This work
 
 \end{document}
 
