@@ -27,11 +27,11 @@ def data_vectors():
     obs = data.load_observations()
 
     """ obsevations """
-    g = obs["TMAG"][:,0]
-    r = obs["TMAG"][:,1]
-    i = obs["TMAG"][:,2]
-    z = obs["TMAG"][:,3]
-    y = obs["TMAG"][:,4]
+    g = obs["OMAG"][:,0]
+    r = obs["OMAG"][:,1]
+    i = obs["OMAG"][:,2]
+    z = obs["OMAG"][:,3]
+    y = obs["OMAG"][:,4]
 
     """ errors """
 
@@ -48,35 +48,35 @@ def data_vectors():
     Z = true['Z']
     R = true['SIZE']
     COEFFS = true['COEFFS']
-        
-    CAT = np.vstack([g-r,r-i,i-z,z-y,r,dm,Z,R]).T
+
+    CAT = np.vstack([g-r,r-i,i-z,z-y,r+dm,Z,R,COEFFS]).T
     CATERR = np.vstack([ge,re,ie,ze,ye]).T
     CATERR = np.log(CATERR)
 
     """ filtering the catalogs """
 
     CATERR = CATERR[inds, :]
-    zcut = np.where((CAT[inds,-2] < 2.))[0]
+    zcut = np.where((CAT[inds,-3] < 2.))[0]
     CATERR = CATERR[zcut]
 
     CAT = CAT[inds, :]
-    CAT = CAT[CAT[:,-2] < 2. , :]
+    CAT = CAT[CAT[:,-3] < 2. , :]
 
 
     """ some magnitudes are higher than 30, let's get rid of them """
 
-    #safe_mags = np.where((CAT[:,0] < 30)&(CAT[:,1] < 30)&(CAT[:,2] < 30)&(CAT[:,3] < 30)&(galprops["mass"]<10**13.3))[0] #(CAT[:,3] < 30)and(CAT[:,4] < 30)and(CAT[:,5] < 30))[0]
-    #CAT = CAT[safe_mags]
-    #galprops = galprops[safe_mags]
-    #CATERR = CATERR[safe_mags]
+    safe_mags = np.where((CAT[:,0] < 30)&(CAT[:,1] < 30)&(CAT[:,2] < 30)&(CAT[:,3] < 30)&(CAT[:,4] < 30)&(galprops["mass"]<10**13.3))[0] #(CAT[:,3] < 30)and(CAT[:,4] < 30)and(CAT[:,5] < 30))[0]
+    CAT = CAT[safe_mags]
+    galprops = galprops[safe_mags]
+    CATERR = CATERR[safe_mags]
 
     """ putting together the final catalog before regression """
 
-    gr, ri, iz, zy, r, dm, Z , R = CAT.T
+    gr, ri, iz, zy, r, Z , R = CAT.T
 
     mass , sf = galprops["mass"], galprops["b300"]
 
-    masterX = np.vstack([gr, ri, iz, zy, r, dm]).T
+    masterX = np.vstack([gr, ri, iz, zy, r]).T
     masterY = np.vstack([Z, np.log10(mass), R]).T
 
     length = masterX.shape[0]
@@ -87,8 +87,6 @@ def data_vectors():
     #np.savetxt(util.dat_dir()+"Xerr_test.dat", CATERR[test_ind])
     np.savetxt(util.dat_dir()+"X_train_A.dat", masterX[train_ind])
     np.savetxt(util.dat_dir()+"X_test_A.dat", masterX[test_ind])
-    np.savetxt(util.dat_dir()+"COEFFS_train_A.dat", COEFFS[train_ind])
-    np.savetxt(util.dat_dir()+"COEFFS_test_A.dat", COEFFS[test_ind])
     np.savetxt(util.dat_dir()+"Y_train_A.dat", masterY[train_ind])
     np.savetxt(util.dat_dir()+"Y_test_A.dat", masterY[test_ind])
 
