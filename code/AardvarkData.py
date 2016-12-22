@@ -33,6 +33,51 @@ def load_observations():
 
     return pf.open(data_file)[1].data
 
+def load_filter():
+
+    ''' loads the SDSS R-band filter curve
+    '''
+    data_file = ''.join([util.dat_dir(),
+                         'sdss_r0.par'])
+
+    with open(data_file) as csvfile:
+        tuples = (line.split(None) for line in csvfile)
+        rfilter = [[pair[k] for k in range(1,len(pair))] for pair in tuples]
+        rfilter = np.array([[np.float(r_f) for r_f in line] for line in rfilter[74:]])
+    r_lambda = rfilter.T[0].T
+    r_filter = rfilter.T[3].T
+
+    return (r_lambda, r_filter)
+
+def load_templates():
+
+    ''' loads the kcorrect templates
+    '''
+    data_file = ''.join([util.dat_dir(),
+                         'vmatrix.default.dat'])
+
+    with open(data_file) as csvfile:
+        tuples = (line.split(None) for line in csvfile)
+        templates = [np.float(pair[0]) for pair in tuples]
+        templates = np.array(templates[1:])
+        templates = np.array(np.split(templates, 5))
+
+    return templates
+
+def load_wavelengths():
+
+    ''' loads the wavelengths for the kcorrect templates
+    '''
+    data_file = ''.join([util.dat_dir(),
+                         'lambda.default.dat'])
+
+    with open(data_file) as csvfile:
+        tuples = (line.split(None) for line in csvfile)
+        wavelengths = [np.float(pair[0]) for pair in tuples]
+        wavelengths = np.array(wavelengths[1:])
+
+    return wavelengths 
+
 def generate_alpha():
     '''generates additional galaxy properties : Mstar, SSFR, ...
        and write them into a file
